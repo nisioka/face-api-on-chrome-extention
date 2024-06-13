@@ -10,8 +10,6 @@ const faceDetectionOptions = new faceapi.SsdMobilenetv1Options(
 
 if (!faceapi.nets.ssdMobilenetv1.params) {
   setTimeout(downloadModel, 500);
-} else {
-  console.log('models ready', faceapi.nets)
 }
 
 async function downloadModel() {
@@ -31,12 +29,10 @@ async function getResult(_urls) {
 
   for (let index = 0; index < _urls.length; index++) {
     const url = _urls[index];
-    console.log(result[url]);
     if (!result[url]) {
       let imgNew = await imageAll.loadImgFromHTTP(url);
       let detections = await faceapi.detectAllFaces(imgNew,
           faceDetectionOptions);
-      console.log(detections);
       result[url] = detections;
       res[url] = detections;
     } else {

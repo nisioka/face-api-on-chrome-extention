@@ -42,7 +42,6 @@ class ImageAll {
       let detections = allFaces[urls[index]];
 
       for (let j = 0; j < detections.length; j++) {
-        //console.log(detections)
         let box = detections[j]._box;
         let x = box._x, y = box._y, w = box._width;
         ctx.drawImage(that.randomGetBaseImg(j), x - w * 0.25,
@@ -85,10 +84,8 @@ class ImageAll {
   async extractBgUrl(_element) {
     let that = this;
     let bgStr = window.getComputedStyle(_element)["background-image"];
-    // console.log(encodeURI(bgStr))
     if (bgStr !== "none") {
       let res = bgStr.split("(")[1].split(")")[0].replace(/["']/ig, '');
-      // console.log('------',res,'------');
       if (res !== 'url' && !res.match('undefined')) {
 
         let img = await that.loadImgFromHTTP(res);
@@ -136,7 +133,6 @@ class ImageAll {
   };
 
   async loadImgFromHTTP(_url) {
-    //console.log("loadImgFromHTTP:", _url);
     let that = this;
 
     return new Promise((resolve) => {
@@ -166,7 +162,6 @@ class ImageAll {
     return new Promise((resolve) => {
       let img = new Image();
       img.src = _url;
-      // console.log(str);
       img.onload = function () {
         resolve(img);
       };
