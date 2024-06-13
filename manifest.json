@@ -28,7 +28,6 @@
         "css/content_css.css"
       ],
       "js": [
-        "js/baseImg.js",
         "js/imageAllExchange.js",
         "js/content_script.js"
       ],

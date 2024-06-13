@@ -38,14 +38,12 @@ class ImageAll {
     for (let index = 0; index < imgs.length; index++) {
       const img = imgs[index];
       let imgNew = await that.loadImgFromHTTP(urls[index]),
-          ctx = that.createCanvasFromImg(imgNew);
+          ctx = that.createCanvas(imgNew);
       let detections = allFaces[urls[index]];
 
       for (let j = 0; j < detections.length; j++) {
         let box = detections[j]._box;
-        let x = box._x, y = box._y, w = box._width;
-        ctx.drawImage(that.randomGetBaseImg(j), x - w * 0.25,
-            y - 0.85 * w * 279 / 400, w * 1.5, w * 1.5 * 279 / 400);
+        ctx.strokeRect(box._x, box._y, box._width, box._height);
       }
 
       if (types[index] === 'element-image') {
@@ -168,7 +166,7 @@ class ImageAll {
     });
   };
 
-  createCanvasFromImg(_img) {
+  createCanvas(_img) {
     let w = _img.naturalWidth,
         h = _img.naturalHeight;
 
@@ -180,16 +178,7 @@ class ImageAll {
     ctx.drawImage(_img, 0, 0, w, h);
 
     return ctx
-
   };
-
-  randomGetBaseImg(_index) {
-    let imgs = [baseImg, baseImg1, baseImg2, baseImg3];
-    if (_index >= imgs.length) {
-      _index = 0;
-    }
-    return imgs[_index];
-  }
 }
 
 
