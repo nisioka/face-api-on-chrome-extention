@@ -135,25 +135,19 @@ class ImageAll {
 
     return new Promise((resolve) => {
 
-      let url = _url;
-      let xhr = new XMLHttpRequest();
-      xhr.responseType = 'arraybuffer';
-      xhr.open("GET", url, true);
-      xhr.send();
-
-      xhr.onload = async function () {
-        let blob = this.response;
-        let base64 = btoa(
-            new Uint8Array(blob)
-            .reduce((data, byte) => data + String.fromCharCode(byte), '')
-        );
-        //btoa(String.fromCharCode.apply(null, new Uint8Array(blob)))
-        let str = 'data:image/png;base64,' + base64;
-        let img = await that.loadImg(str);
-        resolve(img);
-      };
+      fetch(_url, {method: "GET"}).then(response => {
+        response.arrayBuffer().then(blob => {
+          let base64 = btoa(
+              new Uint8Array(blob)
+              .reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          //btoa(String.fromCharCode.apply(null, new Uint8Array(blob)))
+          let str = 'data:image/png;base64,' + base64;
+          let img = that.loadImg(str);
+          resolve(img);
+        })
+      });
     });
-
   };
 
   async loadImg(_url) {
@@ -164,7 +158,7 @@ class ImageAll {
         resolve(img);
       };
     });
-  };
+  }
 
   createCanvas(_img) {
     let w = _img.naturalWidth,
@@ -178,7 +172,7 @@ class ImageAll {
     ctx.drawImage(_img, 0, 0, w, h);
 
     return ctx
-  };
+  }
 }
 
 
