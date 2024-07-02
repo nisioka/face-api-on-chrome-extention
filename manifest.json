@@ -2,7 +2,7 @@
   "name": "Chrome Extension Sample",
   "description": "Chrome Extension Sample",
   "version": "0.1",
-  "manifest_version": 2,
+  "manifest_version": 3,
   "minimum_chrome_version": "23",
   "icons": {
     "16": "icons/logo.png",
@@ -11,16 +11,8 @@
     "128": "icons/logo.png"
   },
   "permissions": [
-    "clipboardRead",
-    "clipboardWrite",
-    "tabs",
-    "webRequestBlocking",
     "webRequest",
-    "contextMenus",
-    "activeTab",
-    "desktopCapture",
-    "tabCapture",
-    "<all_urls>"
+    "activeTab"
   ],
   "content_scripts": [
     {
@@ -38,14 +30,9 @@
     }
   ],
   "background": {
-    "persistent": true,
-    "scripts": [
-      "lib/face-api.min.js",
-      "js/imageAllExchange.js",
-      "js/background.js"
-    ]
+    "service_worker": "js/background.js"
   },
-  "browser_action": {
+  "action": {
     "default_icon": "icons/logo.png",
     "default_title": "ikonwu"
   }

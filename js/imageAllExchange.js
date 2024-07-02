@@ -35,6 +35,10 @@ class ImageAll {
         urls = this.result.urls,
         types = this.result.types;
 
+    if(!allFaces || !imgs || !urls || !types){
+      return
+    }
+
     for (let index = 0; index < imgs.length; index++) {
       const img = imgs[index];
       let imgNew = await that.loadImgFromHTTP(urls[index]),

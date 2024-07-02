@@ -1,3 +1,22 @@
+// import * as faceapi from './face-api.min.js';
+try {
+  importScripts('face-api.js', 'imageAllExchange.js');
+} catch (e) {
+  console.log(e)
+} finally {
+  const env = {
+    Canvas: OffscreenCanvas,
+    createCanvasElement: () => {
+      return new OffscreenCanvas(480, 270);
+    },
+    fetch: () => {
+      return {status: 200};
+    }
+  }
+  faceapi.env.setEnv(env);
+
+  faceapi.env.monkeyPatch(env);
+}
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'detectAllFaces_background') {
     getResult(request.imgurls).then(sendResponse);
@@ -5,9 +24,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-const faceDetectionOptions = new faceapi.SsdMobilenetv1Options(
-    {minConfidence: 0.4});
-
+console.log(faceapi)
 if (!faceapi.nets.ssdMobilenetv1.params) {
   setTimeout(downloadModel, 500);
 }
@@ -20,12 +37,16 @@ async function downloadModel() {
   }
 }
 
-const imageAll = new ImageAll();
-let result = {};
-
 async function getResult(_urls) {
-
   let res = {};
+  if(!faceapi){
+    return res;
+  }
+  const imageAll = new ImageAll();
+  let result = {};
+
+  const faceDetectionOptions = new faceapi.SsdMobilenetv1Options(
+      {minConfidence: 0.4});
 
   for (let index = 0; index < _urls.length; index++) {
     const url = _urls[index];
