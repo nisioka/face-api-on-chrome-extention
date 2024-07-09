@@ -1,5 +1,50 @@
+import * as faceapi from "@vladmandic/face-api";
+
+async function detectAllFaces_background(_urls: string[]) {
+  return getResult(_urls);
+}
+
+async function init() {
+  const imageAll = new ImageAll(detectAllFaces_background);
+
+  await imageAll.run(document.body);
+}
+
+setTimeout(() => {
+  init();
+}, 1000);
+
+async function getResult(_urls: string[]) {
+  let res: { [key: string]: any} = {};
+  if (!faceapi) {
+    return res;
+  }
+  const imageAll = new ImageAll(detectAllFaces_background);
+  let result: { [key: string]: any } = {};
+
+  const faceDetectionOptions = new faceapi.SsdMobilenetv1Options(
+      {minConfidence: 0.4});
+
+  for (let index = 0; index < _urls.length; index++) {
+    const url = _urls[index];
+    if (!result[url]) {
+      let imgNew = await imageAll.loadImgFromHTTP(url);
+      let detections = await faceapi.detectAllFaces(imgNew,
+          faceDetectionOptions);
+      result[url] = detections;
+      res[url] = detections;
+    } else {
+      res[url] = result[url];
+    }
+  }
+
+  return res;
+}
+
 class ImageAll {
-  constructor(_detectAllFacesFn) {
+  private readonly detectAllFacesFn: any;
+  private result: { urls: string[]; types: string[]; allFaces: any; sizes: { width: number, height: number }[]; elements: HTMLImageElement[] };
+  constructor(_detectAllFacesFn: any) {
     this.detectAllFacesFn = _detectAllFacesFn;
     this.result = {
       elements: [],
@@ -10,17 +55,17 @@ class ImageAll {
     }
   };
 
-  async run(_dom) {
+  async run(_dom: any) {
     await this.get(_dom);
     this.updateFacesResult(await this.detectAllFacesFn(this.result.urls));
     await this.exChangeImages();
   };
 
-  updateFacesResult(_allFaces) {
+  updateFacesResult(_allFaces: any) {
     this.result.allFaces = _allFaces;
   };
 
-  async get(_parent) {
+  async get(_parent: any) {
     let that = this;
     that.getImgElement();
 
@@ -29,7 +74,7 @@ class ImageAll {
 
   async exChangeImages() {
     let that = this;
-    let allFaces = this.result.allFaces;
+    let allFaces: any = this.result.allFaces;
 
     let imgs = this.result.elements,
         urls = this.result.urls,
@@ -53,13 +98,13 @@ class ImageAll {
       if (types[index] === 'element-image') {
         img.src = ctx.canvas.toDataURL();
       } else if (types[index] === 'background-image') {
-        img.style["background-image"] = "url(" + ctx.canvas.toDataURL() + ")";
+        img.style.setProperty("background-image",   "url(" + ctx.canvas.toDataURL() + ")");
       }
 
     }
   };
 
-  async traversal(_parent) {
+  async traversal(_parent: any) {
     let that = this;
     let parent = _parent;
     let child = parent.firstChild;
@@ -83,14 +128,14 @@ class ImageAll {
     }
   };
 
-  async extractBgUrl(_element) {
+  async extractBgUrl(_element: Element) {
     let that = this;
-    let bgStr = window.getComputedStyle(_element)["background-image"];
+    let bgStr = window.getComputedStyle(_element).getPropertyValue("background-image");
     if (bgStr !== "none") {
       let res = bgStr.split("(")[1].split(")")[0].replace(/["']/ig, '');
       if (res !== 'url' && !res.match('undefined')) {
 
-        let img = await that.loadImgFromHTTP(res);
+        let img: HTMLImageElement = await that.loadImgFromHTTP(res);
         let w = img.naturalWidth,
             h = img.naturalHeight;
         if (that.isImgMatch(w, h, res)) {
@@ -121,11 +166,11 @@ class ImageAll {
     }
   };
 
-  isImgMatch(_w, _h, _url) {
-    return !!(_w !== 0 & _h !== 0 & _w > 10 && !_url.match('.svg'));
+  isImgMatch(_w: number, _h: number, _url: string) {
+    return (_w !== 0 && _h !== 0 && _w > 10 && !_url.match('.svg'));
   };
 
-  pushResult(_e, _u, _t, _s) {
+  pushResult(_e: HTMLImageElement, _u: string, _t: string, _s: { width: number, height: number }) {
 
     this.result.urls.push(_u);
     this.result.elements.push(_e);
@@ -134,10 +179,10 @@ class ImageAll {
 
   };
 
-  async loadImgFromHTTP(_url) {
+  async loadImgFromHTTP(_url: string) {
     let that = this;
 
-    return new Promise((resolve) => {
+    return new Promise<HTMLImageElement>((resolve) => {
 
       fetch(_url, {method: "GET"}).then(response => {
         response.arrayBuffer().then(blob => {
@@ -154,9 +199,9 @@ class ImageAll {
     });
   };
 
-  async loadImg(_url) {
-    return new Promise((resolve) => {
-      let img = new Image();
+  async loadImg(_url: string) {
+    return new Promise<HTMLImageElement>((resolve) => {
+      let img: HTMLImageElement = new Image();
       img.src = _url;
       img.onload = function () {
         resolve(img);
@@ -164,7 +209,7 @@ class ImageAll {
     });
   }
 
-  createCanvas(_img) {
+  createCanvas(_img: HTMLImageElement) {
     let w = _img.naturalWidth,
         h = _img.naturalHeight;
 
@@ -173,6 +218,9 @@ class ImageAll {
     c.height = h;
 
     let ctx = c.getContext('2d');
+    if (!ctx) {
+      throw new Error('2d context is not supported');
+    }
     ctx.drawImage(_img, 0, 0, w, h);
 
     return ctx
