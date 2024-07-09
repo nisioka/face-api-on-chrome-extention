@@ -25,7 +25,7 @@ const manifest = defineManifest({
   manifest_version: 3,
   name: "Chrome Extension Sample",
   description: "Chrome Extension Sample",
-  version: "0.1.0",
+  version: "0.1.1",
   minimum_chrome_version: "23",
   icons: {
     16: "icons/logo.png",

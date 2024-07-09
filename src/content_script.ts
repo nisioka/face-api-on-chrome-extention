@@ -1,59 +1,22 @@
 import * as faceapi from "@vladmandic/face-api";
 
-async function detectAllFaces_background(_urls: string[]) {
-  return getResult(_urls);
-}
-
 async function init() {
-  const imageAll = new ImageAll(detectAllFaces_background);
+  // download model
+  if (!faceapi.nets.ssdMobilenetv1.params) {
+    faceapi.nets.ssdMobilenetv1 = await faceapi.createSsdMobilenetv1(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/ssd_mobilenetv1.weights')));
+  }
 
+  const imageAll = new ImageAll();
   await imageAll.run(document.body);
-}
-
-if (!faceapi.nets.ssdMobilenetv1.params) {
-  setTimeout(downloadModel, 500);
 }
 
 setTimeout(() => {
   init();
 }, 1000);
 
-async function downloadModel() {
-  if (!faceapi.nets.ssdMobilenetv1.params) {
-    faceapi.nets.ssdMobilenetv1 = await faceapi.createSsdMobilenetv1(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/ssd_mobilenetv1.weights')));
-  }
-}
-
-async function getResult(_urls: string[]) {
-  let res: { [key: string]: any} = {};
-  if (!faceapi) {
-    return res;
-  }
-  const imageAll = new ImageAll(detectAllFaces_background);
-  let result: { [key: string]: any } = {};
-
-  const faceDetectionOptions = new faceapi.SsdMobilenetv1Options({minConfidence: 0.4});
-
-  for (let index = 0; index < _urls.length; index++) {
-    const url = _urls[index];
-    if (!result[url]) {
-      let imgNew = await imageAll.loadImgFromHTTP(url);
-      let detections = await faceapi.detectAllFaces(imgNew, faceDetectionOptions);
-      result[url] = detections;
-      res[url] = detections;
-    } else {
-      res[url] = result[url];
-    }
-  }
-
-  return res;
-}
-
 class ImageAll {
-  private readonly detectAllFacesFn: any;
   private result: { urls: string[]; types: string[]; allFaces: any; sizes: { width: number, height: number }[]; elements: HTMLImageElement[] };
-  constructor(_detectAllFacesFn: any) {
-    this.detectAllFacesFn = _detectAllFacesFn;
+  constructor() {
     this.result = {
       elements: [],
       urls: [],
@@ -63,23 +26,31 @@ class ImageAll {
     }
   };
 
+  async detectAllFaces(_urls: string[]) {
+    let res: { [key: string]: any} = {};
+
+    const faceDetectionOptions = new faceapi.SsdMobilenetv1Options({minConfidence: 0.4});
+
+    for (let index = 0; index < _urls.length; index++) {
+      const url = _urls[index];
+      if (!res[url]) {
+        let imgNew = await this.loadImgFromHTTP(url);
+        res[url] = await faceapi.detectAllFaces(imgNew, faceDetectionOptions);
+      }
+    }
+
+    return res;
+  }
+
   async run(_dom: any) {
-    await this.get(_dom);
-    this.updateFacesResult(await this.detectAllFacesFn(this.result.urls));
-    await this.exChangeImages();
-  };
-
-  updateFacesResult(_allFaces: any) {
-    this.result.allFaces = _allFaces;
-  };
-
-  async get(_parent: any) {
     this.getImgElement();
+    await this.traversal(_dom);
 
-    await this.traversal(_parent);
+    this.result.allFaces = await this.detectAllFaces(this.result.urls);
+    await this.exchangeImages();
   };
 
-  async exChangeImages() {
+  async exchangeImages() {
     let allFaces: any = this.result.allFaces,
         imgs = this.result.elements,
         urls = this.result.urls,
@@ -97,6 +68,7 @@ class ImageAll {
 
       for (let j = 0; j < detections.length; j++) {
         let box = detections[j]._box;
+        ctx.strokeStyle = 'red';
         ctx.strokeRect(box._x, box._y, box._width, box._height);
       }
 
@@ -112,9 +84,7 @@ class ImageAll {
     let child = _parent.firstChild;
 
     while (child !== _parent.lastChild) {
-
       if (child.nodeType === 1) {
-
         let exRes = await this.extractBgUrl(child);
 
         if (exRes && exRes.url) {
