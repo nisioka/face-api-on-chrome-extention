@@ -10,9 +10,19 @@ async function init() {
   await imageAll.run(document.body);
 }
 
+if (!faceapi.nets.ssdMobilenetv1.params) {
+  setTimeout(downloadModel, 500);
+}
+
 setTimeout(() => {
   init();
 }, 1000);
+
+async function downloadModel() {
+  if (!faceapi.nets.ssdMobilenetv1.params) {
+    faceapi.nets.ssdMobilenetv1 = await faceapi.createSsdMobilenetv1(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/ssd_mobilenetv1.weights')));
+  }
+}
 
 async function getResult(_urls: string[]) {
   let res: { [key: string]: any} = {};
@@ -22,15 +32,13 @@ async function getResult(_urls: string[]) {
   const imageAll = new ImageAll(detectAllFaces_background);
   let result: { [key: string]: any } = {};
 
-  const faceDetectionOptions = new faceapi.SsdMobilenetv1Options(
-      {minConfidence: 0.4});
+  const faceDetectionOptions = new faceapi.SsdMobilenetv1Options({minConfidence: 0.4});
 
   for (let index = 0; index < _urls.length; index++) {
     const url = _urls[index];
     if (!result[url]) {
       let imgNew = await imageAll.loadImgFromHTTP(url);
-      let detections = await faceapi.detectAllFaces(imgNew,
-          faceDetectionOptions);
+      let detections = await faceapi.detectAllFaces(imgNew, faceDetectionOptions);
       result[url] = detections;
       res[url] = detections;
     } else {
@@ -135,8 +143,8 @@ class ImageAll {
       let res = bgStr.split("(")[1].split(")")[0].replace(/["']/ig, '');
       if (res !== 'url' && !res.match('undefined')) {
 
-        let img: HTMLImageElement = await that.loadImgFromHTTP(res);
-        let w = img.naturalWidth,
+        let img: HTMLImageElement = await that.loadImgFromHTTP(res),
+            w = img.naturalWidth,
             h = img.naturalHeight;
         if (that.isImgMatch(w, h, res)) {
           return {url: res, img: img};
@@ -150,8 +158,8 @@ class ImageAll {
     let imgs = document.images;
 
     for (let i = 0; i < imgs.length; i++) {
-      let img = imgs[i];
-      let w = img.naturalWidth,
+      let img = imgs[i],
+          w = img.naturalWidth,
           h = img.naturalHeight,
           url = img.src;
 
@@ -171,12 +179,10 @@ class ImageAll {
   };
 
   pushResult(_e: HTMLImageElement, _u: string, _t: string, _s: { width: number, height: number }) {
-
     this.result.urls.push(_u);
     this.result.elements.push(_e);
     this.result.types.push(_t);
     this.result.sizes.push(_s);
-
   };
 
   async loadImgFromHTTP(_url: string) {
@@ -190,7 +196,6 @@ class ImageAll {
               new Uint8Array(blob)
               .reduce((data, byte) => data + String.fromCharCode(byte), '')
           );
-          //btoa(String.fromCharCode.apply(null, new Uint8Array(blob)))
           let str = 'data:image/png;base64,' + base64;
           let img = that.loadImg(str);
           resolve(img);
@@ -211,13 +216,12 @@ class ImageAll {
 
   createCanvas(_img: HTMLImageElement) {
     let w = _img.naturalWidth,
-        h = _img.naturalHeight;
+        h = _img.naturalHeight,
+        canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
 
-    let c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-
-    let ctx = c.getContext('2d');
+    let ctx = canvas.getContext('2d');
     if (!ctx) {
       throw new Error('2d context is not supported');
     }
