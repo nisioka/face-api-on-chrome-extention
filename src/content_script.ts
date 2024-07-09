@@ -74,17 +74,14 @@ class ImageAll {
   };
 
   async get(_parent: any) {
-    let that = this;
-    that.getImgElement();
+    this.getImgElement();
 
-    await that.traversal(_parent);
+    await this.traversal(_parent);
   };
 
   async exChangeImages() {
-    let that = this;
-    let allFaces: any = this.result.allFaces;
-
-    let imgs = this.result.elements,
+    let allFaces: any = this.result.allFaces,
+        imgs = this.result.elements,
         urls = this.result.urls,
         types = this.result.types;
 
@@ -94,8 +91,8 @@ class ImageAll {
 
     for (let index = 0; index < imgs.length; index++) {
       const img = imgs[index];
-      let imgNew = await that.loadImgFromHTTP(urls[index]),
-          ctx = that.createCanvas(imgNew);
+      let imgNew = await this.loadImgFromHTTP(urls[index]),
+          ctx = this.createCanvas(imgNew);
       let detections = allFaces[urls[index]];
 
       for (let j = 0; j < detections.length; j++) {
@@ -108,28 +105,25 @@ class ImageAll {
       } else if (types[index] === 'background-image') {
         img.style.setProperty("background-image",   "url(" + ctx.canvas.toDataURL() + ")");
       }
-
     }
   };
 
   async traversal(_parent: any) {
-    let that = this;
-    let parent = _parent;
-    let child = parent.firstChild;
+    let child = _parent.firstChild;
 
-    while (child !== parent.lastChild) {
+    while (child !== _parent.lastChild) {
 
       if (child.nodeType === 1) {
 
-        let exRes = await that.extractBgUrl(child);
+        let exRes = await this.extractBgUrl(child);
 
         if (exRes && exRes.url) {
-          that.pushResult(child, exRes.url, "background-image", {
+          this.pushResult(child, exRes.url, "background-image", {
             width: exRes.img.naturalWidth,
             height: exRes.img.naturalHeight
           });
         }
-        await that.traversal(child);
+        await this.traversal(child);
       }
 
       child = child.nextSibling;
@@ -137,16 +131,15 @@ class ImageAll {
   };
 
   async extractBgUrl(_element: Element) {
-    let that = this;
     let bgStr = window.getComputedStyle(_element).getPropertyValue("background-image");
     if (bgStr !== "none") {
       let res = bgStr.split("(")[1].split(")")[0].replace(/["']/ig, '');
       if (res !== 'url' && !res.match('undefined')) {
 
-        let img: HTMLImageElement = await that.loadImgFromHTTP(res),
+        let img: HTMLImageElement = await this.loadImgFromHTTP(res),
             w = img.naturalWidth,
             h = img.naturalHeight;
-        if (that.isImgMatch(w, h, res)) {
+        if (this.isImgMatch(w, h, res)) {
           return {url: res, img: img};
         }
       }
@@ -154,7 +147,6 @@ class ImageAll {
   };
 
   getImgElement() {
-    let that = this;
     let imgs = document.images;
 
     for (let i = 0; i < imgs.length; i++) {
@@ -163,9 +155,9 @@ class ImageAll {
           h = img.naturalHeight,
           url = img.src;
 
-      if (that.isImgMatch(w, h, url)) {
+      if (this.isImgMatch(w, h, url)) {
 
-        that.pushResult(img, url, "element-image", {
+        this.pushResult(img, url, "element-image", {
           width: w,
           height: h
         });
@@ -186,8 +178,6 @@ class ImageAll {
   };
 
   async loadImgFromHTTP(_url: string) {
-    let that = this;
-
     return new Promise<HTMLImageElement>((resolve) => {
 
       fetch(_url, {method: "GET"}).then(response => {
@@ -197,9 +187,11 @@ class ImageAll {
               .reduce((data, byte) => data + String.fromCharCode(byte), '')
           );
           let str = 'data:image/png;base64,' + base64;
-          let img = that.loadImg(str);
+          let img = this.loadImg(str);
           resolve(img);
         })
+      }).catch((e) => {
+        console.error('Error:', e);
       });
     });
   };
