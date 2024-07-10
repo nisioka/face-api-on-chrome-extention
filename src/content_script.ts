@@ -1,21 +1,26 @@
 import * as faceapi from "@vladmandic/face-api";
+import {FaceDetection} from "@vladmandic/face-api";
+
+setTimeout(init, 1000);
 
 async function init() {
   // download model
   if (!faceapi.nets.ssdMobilenetv1.params) {
     faceapi.nets.ssdMobilenetv1 = await faceapi.createSsdMobilenetv1(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/ssd_mobilenetv1.weights')));
   }
+  if (!faceapi.nets.faceLandmark68Net.params) {
+    await faceapi.nets.faceLandmark68Net.load(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/face_landmark_68_model.weights')))
+  }
+  if (!faceapi.nets.faceRecognitionNet.params) {
+    faceapi.nets.faceRecognitionNet = await faceapi.createFaceRecognitionNet(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/face_recognition_model.weights')));
+  }
 
   const imageAll = new ImageAll();
   await imageAll.run(document.body);
 }
 
-setTimeout(() => {
-  init();
-}, 1000);
-
 class ImageAll {
-  private result: { urls: string[]; types: string[]; allFaces: any; sizes: { width: number, height: number }[]; elements: HTMLImageElement[] };
+  private result: { urls: string[]; types: string[]; allFaces: { [key: string]: {detection: FaceDetection, descriptor: Float32Array}[] }; sizes: { width: number, height: number }[]; elements: HTMLImageElement[] };
   constructor() {
     this.result = {
       elements: [],
@@ -35,7 +40,7 @@ class ImageAll {
       const url = _urls[index];
       if (!res[url]) {
         let imgNew = await this.loadImgFromHTTP(url);
-        res[url] = await faceapi.detectAllFaces(imgNew, faceDetectionOptions);
+        res[url] = await faceapi.detectAllFaces(imgNew, faceDetectionOptions).withFaceLandmarks().withFaceDescriptors();
       }
     }
 
@@ -52,22 +57,22 @@ class ImageAll {
 
   async exchangeImages() {
     let allFaces: any = this.result.allFaces,
-        imgs = this.result.elements,
+        imgElements = this.result.elements,
         urls = this.result.urls,
         types = this.result.types;
 
-    if(!allFaces || !imgs || !urls || !types){
+    if(!allFaces || !imgElements || !urls || !types){
       return
     }
 
-    for (let index = 0; index < imgs.length; index++) {
-      const img = imgs[index];
+    for (let index = 0; index < imgElements.length; index++) {
+      const img = imgElements[index];
       let imgNew = await this.loadImgFromHTTP(urls[index]),
           ctx = this.createCanvas(imgNew);
-      let detections = allFaces[urls[index]];
+      let faceImage = allFaces[urls[index]];
 
-      for (let j = 0; j < detections.length; j++) {
-        let box = detections[j]._box;
+      for (let j = 0; j < faceImage.length; j++) {
+        let box = faceImage[j].detection._box;
         ctx.strokeStyle = 'red';
         ctx.strokeRect(box._x, box._y, box._width, box._height);
       }
@@ -117,10 +122,10 @@ class ImageAll {
   };
 
   getImgElement() {
-    let imgs = document.images;
+    let imgElements = document.images;
 
-    for (let i = 0; i < imgs.length; i++) {
-      let img = imgs[i],
+    for (let i = 0; i < imgElements.length; i++) {
+      let img = imgElements[i],
           w = img.naturalWidth,
           h = img.naturalHeight,
           url = img.src;
