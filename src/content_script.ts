@@ -1,19 +1,13 @@
 import * as faceapi from "@vladmandic/face-api";
 import {FaceDetection} from "@vladmandic/face-api";
+import {decodeStringToFloat32Array, faceDetectionOptions, prepareFaceApi} from "./wrapper-face-api.ts";
+import {getBucket} from "@extend-chrome/storage";
+import {UserSettings} from "./popup.ts";
 
 setTimeout(init, 1000);
 
 async function init() {
-  // download model
-  if (!faceapi.nets.ssdMobilenetv1.params) {
-    faceapi.nets.ssdMobilenetv1 = await faceapi.createSsdMobilenetv1(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/ssd_mobilenetv1.weights')));
-  }
-  if (!faceapi.nets.faceLandmark68Net.params) {
-    await faceapi.nets.faceLandmark68Net.load(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/face_landmark_68_model.weights')))
-  }
-  if (!faceapi.nets.faceRecognitionNet.params) {
-    faceapi.nets.faceRecognitionNet = await faceapi.createFaceRecognitionNet(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/face_recognition_model.weights')));
-  }
+  await prepareFaceApi();
 
   const imageAll = new ImageAll();
   await imageAll.run(document.body);
@@ -34,12 +28,10 @@ class ImageAll {
   async detectAllFaces(_urls: string[]) {
     let res: { [key: string]: any} = {};
 
-    const faceDetectionOptions = new faceapi.SsdMobilenetv1Options({minConfidence: 0.4});
-
     for (let index = 0; index < _urls.length; index++) {
       const url = _urls[index];
       if (!res[url]) {
-        let imgNew = await this.loadImgFromHTTP(url);
+        const imgNew = await this.loadImgFromHTTP(url);
         res[url] = await faceapi.detectAllFaces(imgNew, faceDetectionOptions).withFaceLandmarks().withFaceDescriptors();
       }
     }
@@ -56,7 +48,7 @@ class ImageAll {
   };
 
   async exchangeImages() {
-    let allFaces: any = this.result.allFaces,
+    const allFaces: any = this.result.allFaces,
         imgElements = this.result.elements,
         urls = this.result.urls,
         types = this.result.types;
@@ -65,14 +57,25 @@ class ImageAll {
       return
     }
 
+    const userSettings = await getBucket<UserSettings>("user_settings", "sync").get();
+    const descriptor = decodeStringToFloat32Array(userSettings.data[0].faceDescriptor);
+    const labeledDescriptor = new faceapi.LabeledFaceDescriptors(userSettings.data[0].name, [descriptor]);
+
     for (let index = 0; index < imgElements.length; index++) {
-      const img = imgElements[index];
-      let imgNew = await this.loadImgFromHTTP(urls[index]),
+      const img = imgElements[index],
+          imgNew = await this.loadImgFromHTTP(urls[index]),
           ctx = this.createCanvas(imgNew);
-      let faceImage = allFaces[urls[index]];
+      const faceImage = allFaces[urls[index]];
 
       for (let j = 0; j < faceImage.length; j++) {
-        let box = faceImage[j].detection._box;
+        console.log(faceapi.euclideanDistance(faceImage[j].descriptor, descriptor))
+        const matcher = new faceapi.FaceMatcher(labeledDescriptor, 0.6);
+        console.log(matcher.findBestMatch(faceImage[j].descriptor).valueOf())
+        if(faceapi.euclideanDistance(faceImage[j].descriptor, descriptor) > 0.6){
+          continue;
+        }
+
+        const box = faceImage[j].detection._box;
         ctx.strokeStyle = 'red';
         ctx.strokeRect(box._x, box._y, box._width, box._height);
       }
@@ -90,7 +93,7 @@ class ImageAll {
 
     while (child !== _parent.lastChild) {
       if (child.nodeType === 1) {
-        let exRes = await this.extractBgUrl(child);
+        const exRes = await this.extractBgUrl(child);
 
         if (exRes && exRes.url) {
           this.pushResult(child, exRes.url, "background-image", {
@@ -106,12 +109,12 @@ class ImageAll {
   };
 
   async extractBgUrl(_element: Element) {
-    let bgStr = window.getComputedStyle(_element).getPropertyValue("background-image");
+    const bgStr = window.getComputedStyle(_element).getPropertyValue("background-image");
     if (bgStr !== "none") {
-      let res = bgStr.split("(")[1].split(")")[0].replace(/["']/ig, '');
+      const res = bgStr.split("(")[1].split(")")[0].replace(/["']/ig, '');
       if (res !== 'url' && !res.match('undefined')) {
 
-        let img: HTMLImageElement = await this.loadImgFromHTTP(res),
+        const img: HTMLImageElement = await this.loadImgFromHTTP(res),
             w = img.naturalWidth,
             h = img.naturalHeight;
         if (this.isImgMatch(w, h, res)) {
@@ -122,10 +125,10 @@ class ImageAll {
   };
 
   getImgElement() {
-    let imgElements = document.images;
+    const imgElements = document.images;
 
     for (let i = 0; i < imgElements.length; i++) {
-      let img = imgElements[i],
+      const img = imgElements[i],
           w = img.naturalWidth,
           h = img.naturalHeight,
           url = img.src;
@@ -157,13 +160,12 @@ class ImageAll {
 
       fetch(_url, {method: "GET"}).then(response => {
         response.arrayBuffer().then(blob => {
-          let base64 = btoa(
+          const base64 = btoa(
               new Uint8Array(blob)
               .reduce((data, byte) => data + String.fromCharCode(byte), '')
           );
-          let str = 'data:image/png;base64,' + base64;
-          let img = this.loadImg(str);
-          resolve(img);
+          const str = 'data:image/png;base64,' + base64;
+          resolve(this.loadImg(str));
         })
       }).catch((e) => {
         console.error('Error:', e);
@@ -173,7 +175,7 @@ class ImageAll {
 
   async loadImg(_url: string) {
     return new Promise<HTMLImageElement>((resolve) => {
-      let img: HTMLImageElement = new Image();
+      const img: HTMLImageElement = new Image();
       img.src = _url;
       img.onload = function () {
         resolve(img);
@@ -182,13 +184,13 @@ class ImageAll {
   }
 
   createCanvas(_img: HTMLImageElement) {
-    let w = _img.naturalWidth,
+    const w = _img.naturalWidth,
         h = _img.naturalHeight,
         canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
 
-    let ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
     if (!ctx) {
       throw new Error('2d context is not supported');
     }

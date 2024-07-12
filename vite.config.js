@@ -10,7 +10,7 @@ export default defineConfig((opt) => {
       rollupOptions: {
         input: {
           content_script: resolve(__dirname, 'src/content_script.ts'),
-          // popup: resolve(__dirname, 'src/hello.html')
+          popup: resolve(__dirname, 'src/popup.ts')
         },
         output: {
           entryFileNames: '[name].js',
@@ -35,7 +35,8 @@ const manifest = defineManifest({
   },
   permissions: [
     "webRequest",
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
   content_scripts: [
     {
@@ -48,7 +49,6 @@ const manifest = defineManifest({
       matches: [
         "<all_urls>"
       ],
-      run_at: "document_end"
     }
   ],
   web_accessible_resources: [
@@ -58,8 +58,13 @@ const manifest = defineManifest({
         "css/content_css.css",
         "weights/ssd_mobilenetv1.weights",
         "weights/face_landmark_68_model.weights",
+        "weights/face_landmark_68_tiny_model.weights",
         "weights/face_recognition_model.weights"
       ]
     }
-  ]
+  ],
+  action: {
+    default_popup: "popup.html"
+  }
+
 });
