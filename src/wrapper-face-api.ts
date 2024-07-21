@@ -1,6 +1,6 @@
 import * as faceapi from "@vladmandic/face-api";
 import {Box} from "@vladmandic/face-api";
-import {colors, personData} from "./util.ts";
+import {colors, PersonData} from "./util.ts";
 
 export async function prepareFaceApi() {
   // download model
@@ -37,7 +37,7 @@ function decodeStringToFloat32Array(f32base64Array: string[]) {
   return array
 }
 
-export function getFaceMatchers(data: personData[]){
+export function getFaceMatchers(data: PersonData[]){
   const faceMatchers= [] as {matcher: faceapi.FaceMatcher, color: colors}[];
 
   data.forEach(value => {

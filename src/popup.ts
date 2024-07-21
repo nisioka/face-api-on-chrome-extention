@@ -4,13 +4,21 @@ import {
   getSingleFaceDescriptor,
   prepareFaceApi
 } from "./wrapper-face-api.ts";
-import {colors, getUserSettingBucket, selectableColors, UserSettings} from "./util.ts";
+import {
+  colors,
+  FaceImageSource,
+  getFaceImageBucket,
+  getUserSettingBucket,
+  selectableColors,
+  UserSettings
+} from "./util.ts";
 
 
 const userSettings = getUserSettingBucket();
+const faceImage = getFaceImageBucket();
 prepareFaceApi()
 
-function createDomRecord(container: HTMLElement, setting: UserSettings, index: number) {
+function createDomRecord(container: HTMLElement, setting: UserSettings, faceImages: FaceImageSource, index: number) {
   // input image file
   const record = container.appendChild(document.createElement("div"));
   const color = setting.data[index].color || selectableColors[index];
@@ -54,6 +62,7 @@ function createDomRecord(container: HTMLElement, setting: UserSettings, index: n
   const imageChoice = record.appendChild(document.createElement("div"));
   imageChoice.style.columnCount = "2";
 
+  const fileNames = Object.keys(setting.data[index].faceDescriptor = setting.data[index].faceDescriptor || {});
   for(let i = 0; i < 2; i++) {
     const imageView = imageChoice.appendChild(document.createElement("div"));
     const inputFile = imageView.appendChild(document.createElement("input"));
@@ -62,6 +71,11 @@ function createDomRecord(container: HTMLElement, setting: UserSettings, index: n
     const preview = imageView.appendChild(document.createElement("img"))
     preview.width = 100;
     preview.height = 100;
+    if(fileNames.length > i && fileNames[i] && faceImages[fileNames[i]]){
+      preview.src = faceImages[fileNames[i]];
+    }
+    imageView.appendChild(document.createTextNode(fileNames[i] || ""));
+
     inputFile.addEventListener("change", function () {
       previewFile(this, preview, index);
     });
@@ -86,13 +100,20 @@ window.onload = async () => {
       g.data.push({name: "", color: null, faceDescriptor: {}})
       g.data.push({name: "", color: null, faceDescriptor: {}})
     }
-    userSettings.set(g)
+    userSettings.set(g).then((s) => {console.log(s)})
+    return g
+  })
+  const faceImages = await faceImage.get().then((g) => {
+    if (!g) {
+      g = {}
+    }
+    faceImage.set(g).then((s) => {console.log(s)})
     return g
   })
 
-  createDomRecord(container, setting, 0);
-  createDomRecord(container, setting, 1);
-  createDomRecord(container, setting, 2);
+  createDomRecord(container, setting, faceImages, 0);
+  createDomRecord(container, setting, faceImages, 1);
+  createDomRecord(container, setting, faceImages, 2);
 
 }
 
@@ -124,6 +145,10 @@ function previewFile(inputFile: HTMLInputElement, preview: HTMLImageElement, ind
             preview.src = ctx.canvas.toDataURL();
 
             userSettings.set(g)
+          })
+          faceImage.get().then(g => {
+            g[fileName] = ctx.canvas.toDataURL()
+            faceImage.set(g)
           })
         }
 
