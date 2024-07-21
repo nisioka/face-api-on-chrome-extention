@@ -12,7 +12,7 @@
     "@crxjs/vite-plugin": "2.0.0-beta.23",
     "@types/chrome": "^0.0.268",
     "typescript": "^5.5.3",
-    "vite": "^5.3.3"
+    "vite": "^5.3.4"
   },
   "dependencies": {
     "@extend-chrome/storage": "^1.5.0",

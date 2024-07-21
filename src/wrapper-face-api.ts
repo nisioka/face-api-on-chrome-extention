@@ -1,5 +1,6 @@
 import * as faceapi from "@vladmandic/face-api";
 import {Box} from "@vladmandic/face-api";
+import {colors, personData} from "./util.ts";
 
 export async function prepareFaceApi() {
   // download model
@@ -8,9 +9,6 @@ export async function prepareFaceApi() {
   }
   if (!faceapi.nets.faceLandmark68Net.params) {
     await faceapi.nets.faceLandmark68Net.load(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/face_landmark_68_model.weights')))
-  }
-  if (!faceapi.nets.faceLandmark68TinyNet.params) {
-    await faceapi.nets.faceLandmark68TinyNet.load(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/face_landmark_68_tiny_model.weights')))
   }
   if (!faceapi.nets.faceRecognitionNet.params) {
     faceapi.nets.faceRecognitionNet = await faceapi.createFaceRecognitionNet(await faceapi.fetchNetWeights(chrome.runtime.getURL('/weights/face_recognition_model.weights')));
@@ -31,20 +29,30 @@ export function encodeFloat32ArrayToString(faceDescriptor: Float32Array) {
   return btoa(String.fromCharCode(...(new Uint8Array(faceDescriptor.buffer))));
 }
 
-export function decodeStringToFloat32Array(f32base64Array: string[]) {
+function decodeStringToFloat32Array(f32base64Array: string[]) {
   const array = [] as Float32Array[]
-  console.log(f32base64Array)
   for (const f32base64 of f32base64Array) {
     array.push(new Float32Array(new Uint8Array([...atob(f32base64)].map(c => c.charCodeAt(0))).buffer));
   }
   return array
 }
 
+export function getFaceMatchers(data: personData[]){
+  const faceMatchers= [] as {matcher: faceapi.FaceMatcher, color: colors}[];
+
+  data.forEach(value => {
+    const descriptors = decodeStringToFloat32Array(Object.values(value.faceDescriptor));
+    const labeledDescriptor = new faceapi.LabeledFaceDescriptors(value.name, descriptors);
+    faceMatchers.push({matcher: new faceapi.FaceMatcher(labeledDescriptor, 0.55), color: value.color});
+  })
+
+  return faceMatchers
+}
+
 export function createCanvasContext(htmlImageElement: HTMLImageElement) {
   const canvas = document.createElement('canvas');
   canvas.width = htmlImageElement.naturalWidth;
   canvas.height = htmlImageElement.naturalHeight;
-  console.log(htmlImageElement.src)
 
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -55,7 +63,7 @@ export function createCanvasContext(htmlImageElement: HTMLImageElement) {
   return ctx
 }
 
-export function faceDrawBox(canvas: HTMLCanvasElement | CanvasRenderingContext2D, box: Box, boxColor?: string, label?: string, drawLabelOptions?: {fontSize: number}) {
+export function faceDrawBox(canvas: HTMLCanvasElement | CanvasRenderingContext2D, box: Box, boxColor?: colors, label?: string, drawLabelOptions?: {fontSize: number}) {
   new faceapi.draw.DrawBox(box, {
     boxColor: boxColor ? boxColor : "red",
     label: label ? label : "",

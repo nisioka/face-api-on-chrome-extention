@@ -4,11 +4,69 @@ import {
   getSingleFaceDescriptor,
   prepareFaceApi
 } from "./wrapper-face-api.ts";
-import {getUserSettings} from "./util.ts";
+import {colors, getUserSettingBucket, selectableColors, UserSettings} from "./util.ts";
 
 
-const userSettings = getUserSettings();
+const userSettings = getUserSettingBucket();
 prepareFaceApi()
+
+function createDomRecord(container: HTMLElement, setting: UserSettings, index: number) {
+  // input image file
+  const record = container.appendChild(document.createElement("div"));
+  const color = setting.data[index].color || selectableColors[index];
+  record.style.border = color + " solid 2px";
+  record.style.margin = "1px";
+
+  record.appendChild(document.createElement("div")).appendChild(document.createTextNode((index + 1) + "人目"))
+
+  const nameLabel = record.appendChild(document.createElement("label"));
+  nameLabel.append("名前");
+  const nameInput = nameLabel.appendChild(document.createElement("input"));
+  nameInput.type = "text";
+  nameInput.value = setting.data[index].name || "";
+  nameInput.addEventListener("change", function () {
+    userSettings.get().then((g) => {
+      g.data[index].name = this.value
+      userSettings.set(g)
+    })
+  })
+
+  const colorLabel = record.appendChild(document.createElement("label"));
+  colorLabel.append("色");
+  const colorSelect = colorLabel.appendChild(document.createElement("select"));
+  colorSelect.appendChild(new Option("赤", "red", color === "red", color === "red"));
+  colorSelect.appendChild(new Option("青", "blue", color === "blue", color === "blue"));
+  colorSelect.appendChild(new Option("緑", "green", color === "green", color === "green"));
+  colorSelect.appendChild(new Option("紫", "purple", color === "purple", color === "purple"));
+  colorSelect.appendChild(new Option("橙", "orange", color === "orange", color === "orange"));
+  colorSelect.appendChild(new Option("黒", "black", color === "black", color === "black"));
+  colorSelect.addEventListener("change", function () {
+    const selected = this.value as colors;
+    if(selected){
+      record.style.borderColor = selected.toString();
+    }
+    userSettings.get().then((g) => {
+      g.data[index].color = selected
+      userSettings.set(g)
+    })
+  })
+
+  const imageChoice = record.appendChild(document.createElement("div"));
+  imageChoice.style.columnCount = "2";
+
+  for(let i = 0; i < 2; i++) {
+    const imageView = imageChoice.appendChild(document.createElement("div"));
+    const inputFile = imageView.appendChild(document.createElement("input"));
+    inputFile.type = "file";
+    inputFile.accept = "image/*";
+    const preview = imageView.appendChild(document.createElement("img"))
+    preview.width = 100;
+    preview.height = 100;
+    inputFile.addEventListener("change", function () {
+      previewFile(this, preview, index);
+    });
+  }
+}
 
 window.onload = async () => {
   const container = document.getElementById("container")
@@ -16,58 +74,29 @@ window.onload = async () => {
 
   const setting = await userSettings.get().then((g) => {
     if (!g || !g.data) {
-      g = {data: [{name: "慧", color: "red", faceDescriptor: {}}]}
+      g = {
+        data: [
+          {name: "", color: null, faceDescriptor: {}},
+          {name: "", color: null, faceDescriptor: {}},
+          {name: "", color: null, faceDescriptor: {}}
+        ]
+      } as UserSettings
     } else if (g.data.length === 0 || !g.data[0].faceDescriptor) {
-      g.data.push({name: "慧", color: "red", faceDescriptor: {}})
+      g.data.push({name: "", color: null, faceDescriptor: {}})
+      g.data.push({name: "", color: null, faceDescriptor: {}})
+      g.data.push({name: "", color: null, faceDescriptor: {}})
     }
     userSettings.set(g)
     return g
   })
-  console.log(setting)
 
-  // input image file
-  const record = container.appendChild(document.createElement("tr"));
-  // const addButton = record.appendChild(document.createElement("button"));
-  // addButton.append("+");
-  // addButton.addEventListener("click", function () {
-  //   this.parentElement?.appendChild(record.cloneNode(true));
-  // })
+  createDomRecord(container, setting, 0);
+  createDomRecord(container, setting, 1);
+  createDomRecord(container, setting, 2);
 
-  const inputFile = document.createElement("input");
-  inputFile.type = "file";
-  inputFile.accept = "image/*";
-  record.appendChild(inputFile);
-  const preview = record.appendChild(document.createElement("img"))
-  preview.id = "preview";
-  preview.alt = "";
-  preview.width = 200;
-  preview.height = 200;
-  inputFile.addEventListener("change", function () {
-    previewFile(this, preview);
-  });
-
-  const record2 = container.appendChild(document.createElement("tr"));
-  // const addButton = record.appendChild(document.createElement("button"));
-  // addButton.append("+");
-  // addButton.addEventListener("click", function () {
-  //   this.parentElement?.appendChild(record.cloneNode(true));
-  // })
-
-  const inputFile2 = document.createElement("input");
-  inputFile2.type = "file";
-  inputFile2.accept = "image/*";
-  record2.appendChild(inputFile2);
-  const preview2 = record2.appendChild(document.createElement("img"))
-  preview2.id = "preview";
-  preview2.alt = "";
-  preview2.width = 200;
-  preview2.height = 200;
-  inputFile2.addEventListener("change", function () {
-    previewFile(this, preview2);
-  });
 }
 
-function previewFile(inputFile: HTMLInputElement, preview: HTMLImageElement) {
+function previewFile(inputFile: HTMLInputElement, preview: HTMLImageElement, index: number) {
   if(!inputFile?.files || !preview) return;
 
   const fileData = new FileReader();
@@ -89,14 +118,12 @@ function previewFile(inputFile: HTMLInputElement, preview: HTMLImageElement) {
 
         if (faceDetector) {
           userSettings.get().then((g) => {
-            g.data[0].faceDescriptor[fileName] = encodeFloat32ArrayToString(faceDetector.descriptor)
+            g.data[index].faceDescriptor[fileName] = encodeFloat32ArrayToString(faceDetector.descriptor)
 
-            faceDrawBox(ctx, faceDetector.detection.box, g.data[0].color, g.data[0].name);
+            faceDrawBox(ctx, faceDetector.detection.box, g.data[index].color, g.data[index].name);
             preview.src = ctx.canvas.toDataURL();
 
-            userSettings.set(g).then((s) => {
-              console.log(s)
-            })
+            userSettings.set(g)
           })
         }
 

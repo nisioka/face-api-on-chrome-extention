@@ -1,12 +1,11 @@
-import * as faceapi from "@vladmandic/face-api";
 import {FaceDetection} from "@vladmandic/face-api";
 import {
   createCanvasContext,
-  decodeStringToFloat32Array, faceDrawBox,
-  getAllFaceDescriptors,
+  faceDrawBox,
+  getAllFaceDescriptors, getFaceMatchers,
   prepareFaceApi
 } from "./wrapper-face-api.ts";
-import {getUserSettings} from "./util.ts";
+import {getUserSettingBucket} from "./util.ts";
 
 setTimeout(init, 1000);
 
@@ -68,9 +67,8 @@ class ImageAll {
       return
     }
 
-    const userSettings = await getUserSettings().get();
-    const descriptors = decodeStringToFloat32Array(Object.values(userSettings.data[0].faceDescriptor));
-    const labeledDescriptor = new faceapi.LabeledFaceDescriptors(userSettings.data[0].name, descriptors);
+    const userSettings = await getUserSettingBucket().get();
+    const matchers = getFaceMatchers(userSettings.data);
 
     for (let index = 0; index < imgElements.length; index++) {
       const img = imgElements[index],
@@ -79,14 +77,14 @@ class ImageAll {
       const faceImage = allFaces[urls[index]];
 
       for (let j = 0; j < faceImage.length; j++) {
-        const matcher = new faceapi.FaceMatcher(labeledDescriptor, 0.6);
-        const match = matcher.findBestMatch(faceImage[j].descriptor);
-        console.log(match.valueOf())
-        if (match.label === 'unknown') {
-          continue
-        }
+        for (const matcher of matchers) {
+          const match = matcher.matcher.findBestMatch(faceImage[j].descriptor);
+          if (match.label === 'unknown') {
+            continue
+          }
 
-        faceDrawBox(ctx.canvas, faceImage[j].detection.box, userSettings.data[0].color, match.label);
+          faceDrawBox(ctx.canvas, faceImage[j].detection.box, matcher.color, match.label);
+        }
       }
 
       if (types[index] === 'element-image') {

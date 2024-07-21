@@ -56,10 +56,8 @@ const manifest = defineManifest({
       matches: ["<all_urls>"],
       resources: [
         "css/content_css.css",
-        "icons/loading.gif",
         "weights/ssd_mobilenetv1.weights",
         "weights/face_landmark_68_model.weights",
-        "weights/face_landmark_68_tiny_model.weights",
         "weights/face_recognition_model.weights"
       ]
     }
