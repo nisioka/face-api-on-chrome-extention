@@ -14,7 +14,7 @@ export interface FaceImageSource {
   [fileName: string]: string
 }
 
-export type colors = "red" | "blue" | "green" | "purple" | "orange" | "black" | null
+export type colors = "red" | "blue" | "green" | "purple" | "orange" | "black"
 
 export const selectableColors = ["red", "blue", "green", "purple", "orange", "black"];
 

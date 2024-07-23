@@ -25,7 +25,14 @@ function createDomRecord(container: HTMLElement, setting: UserSettings, faceImag
   record.style.border = color + " solid 2px";
   record.style.margin = "1px";
 
-  record.appendChild(document.createElement("div")).appendChild(document.createTextNode((index + 1) + "人目"))
+  const header = record.appendChild(document.createElement("div"))
+  header.appendChild(document.createTextNode((index + 1) + "人目"))
+  const clearButton = header.appendChild(document.createElement("button"))
+  clearButton.style.float = "right";
+  clearButton.appendChild(document.createTextNode("x"))
+  clearButton.addEventListener("click", function () {
+    clearRecord(this, index);
+  })
 
   const nameLabel = record.appendChild(document.createElement("label"));
   nameLabel.append("名前");
@@ -60,10 +67,10 @@ function createDomRecord(container: HTMLElement, setting: UserSettings, faceImag
   })
 
   const imageChoice = record.appendChild(document.createElement("div"));
-  imageChoice.style.columnCount = "2";
+  imageChoice.style.columnCount = "3";
 
   const fileNames = Object.keys(setting.data[index].faceDescriptor = setting.data[index].faceDescriptor || {});
-  for(let i = 0; i < 2; i++) {
+  for(let i = 0; i < 3; i++) {
     const imageView = imageChoice.appendChild(document.createElement("div"));
     const inputFile = imageView.appendChild(document.createElement("input"));
     inputFile.type = "file";
@@ -71,13 +78,15 @@ function createDomRecord(container: HTMLElement, setting: UserSettings, faceImag
     const preview = imageView.appendChild(document.createElement("img"))
     preview.width = 100;
     preview.height = 100;
+    preview.style.float = "left";
     if(fileNames.length > i && fileNames[i] && faceImages[fileNames[i]]){
       preview.src = faceImages[fileNames[i]];
     }
-    imageView.appendChild(document.createTextNode(fileNames[i] || ""));
+    const fileNameText = imageView.appendChild(document.createElement("span"));
+    fileNameText.appendChild(document.createTextNode(fileNames.length > i ? fileNames[i] : ""));
 
     inputFile.addEventListener("change", function () {
-      previewFile(this, preview, index);
+      previewFile(this, preview, index, fileNameText);
     });
   }
 }
@@ -90,15 +99,15 @@ window.onload = async () => {
     if (!g || !g.data) {
       g = {
         data: [
-          {name: "", color: null, faceDescriptor: {}},
-          {name: "", color: null, faceDescriptor: {}},
-          {name: "", color: null, faceDescriptor: {}}
+          {name: "", color: "red", faceDescriptor: {}},
+          {name: "", color: "blue", faceDescriptor: {}},
+          {name: "", color: "green", faceDescriptor: {}}
         ]
       } as UserSettings
     } else if (g.data.length === 0 || !g.data[0].faceDescriptor) {
-      g.data.push({name: "", color: null, faceDescriptor: {}})
-      g.data.push({name: "", color: null, faceDescriptor: {}})
-      g.data.push({name: "", color: null, faceDescriptor: {}})
+      g.data.push({name: "", color: "red", faceDescriptor: {}})
+      g.data.push({name: "", color: "blue", faceDescriptor: {}})
+      g.data.push({name: "", color: "green", faceDescriptor: {}})
     }
     userSettings.set(g).then((s) => {console.log(s)})
     return g
@@ -117,7 +126,29 @@ window.onload = async () => {
 
 }
 
-function previewFile(inputFile: HTMLInputElement, preview: HTMLImageElement, index: number) {
+function clearRecord(node: HTMLElement, index: number) {
+  const record = node.parentElement?.parentElement;
+  if (record){
+    record.querySelectorAll("input[type='text']")?.forEach(v => {(v as HTMLInputElement).value = ""});
+    record.querySelectorAll("input[type='file']")?.forEach(v => {(v as HTMLInputElement).value = ""});
+    record.querySelectorAll("img")?.forEach(v => {(v as HTMLImageElement).src = ""});
+    record.querySelectorAll("span")?.forEach(v => {(v as HTMLSpanElement).innerText = ""});
+  }
+
+  userSettings.get().then((u) => {
+    faceImage.get().then(f => {
+      Object.keys(u.data[index].faceDescriptor).forEach((fileName) => {
+        delete f[fileName]
+      })
+      faceImage.set(f).then((s) => {console.log(s)})
+    })
+
+    u.data[index] = {name: "", color: u.data[index].color, faceDescriptor: {}}
+    userSettings.set(u).then((s) => {console.log(s)})
+  })
+}
+
+function previewFile(inputFile: HTMLInputElement, preview: HTMLImageElement, index: number, fileNameText: HTMLSpanElement) {
   if(!inputFile?.files || !preview) return;
 
   const fileData = new FileReader();
@@ -136,6 +167,7 @@ function previewFile(inputFile: HTMLInputElement, preview: HTMLImageElement, ind
         if (inputFile?.files && inputFile?.files.length > 0 && inputFile?.files[0]?.name) {
           fileName = inputFile?.files[0]?.name
         }
+        fileNameText.innerText = fileName;
 
         if (faceDetector) {
           userSettings.get().then((g) => {
