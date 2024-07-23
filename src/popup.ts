@@ -109,14 +109,14 @@ window.onload = async () => {
       g.data.push({name: "", color: "blue", faceDescriptor: {}})
       g.data.push({name: "", color: "green", faceDescriptor: {}})
     }
-    userSettings.set(g).then((s) => {console.log(s)})
+    userSettings.set(g)
     return g
   })
   const faceImages = await faceImage.get().then((g) => {
     if (!g) {
       g = {}
     }
-    faceImage.set(g).then((s) => {console.log(s)})
+    faceImage.set(g)
     return g
   })
 

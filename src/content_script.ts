@@ -2,7 +2,7 @@ import {FaceDetection} from "@vladmandic/face-api";
 import {
   createCanvasContext,
   faceDrawBox,
-  getAllFaceDescriptors, getFaceMatchers,
+  getAllFaceDescriptors, getFaceMatcher,
   prepareFaceApi
 } from "./wrapper-face-api.ts";
 import {getUserSettingBucket} from "./util.ts";
@@ -19,9 +19,8 @@ async function init() {
 class ImageAll {
   private result: {
     urls: string[];
-    types: string[];
+    types: ("element-image" | "background-image")[];
     allFaces: { [key: string]: { detection: FaceDetection, descriptor: Float32Array }[] };
-    sizes: { width: number, height: number }[];
     elements: HTMLImageElement[]
   };
 
@@ -30,34 +29,32 @@ class ImageAll {
       elements: [],
       urls: [],
       types: [],
-      sizes: [],
       allFaces: {}
     }
   };
 
-  async detectAllFaces(_urls: string[]) {
+  async detectAllFaces(urls: string[], images: HTMLImageElement[]) {
     let res: { [key: string]: any } = {};
 
-    for (let index = 0; index < _urls.length; index++) {
-      const url = _urls[index];
+    for (let index = 0; index < urls.length; index++) {
+      const url = urls[index];
       if (!res[url]) {
-        const imgNew = await this.loadImgFromHTTP(url);
-        res[url] = await getAllFaceDescriptors(imgNew);
+        res[url] = await getAllFaceDescriptors(images[index]);
       }
     }
 
     return res;
   }
 
-  async run(_dom: any) {
-    this.getImgElement();
-    await this.traversal(_dom);
+  async run(dom: any) {
+    this.setImageElement();
+    await this.setBackgroundImageElement(dom);
 
-    this.result.allFaces = await this.detectAllFaces(this.result.urls);
-    await this.exchangeImages();
+    this.result.allFaces = await this.detectAllFaces(this.result.urls, this.result.elements);
+    await this.drawFaceMatchImages();
   };
 
-  async exchangeImages() {
+  async drawFaceMatchImages() {
     const allFaces: any = this.result.allFaces,
         imgElements = this.result.elements,
         urls = this.result.urls,
@@ -68,70 +65,44 @@ class ImageAll {
     }
 
     const userSettings = await getUserSettingBucket().get();
-    const matchers = getFaceMatchers(userSettings.data);
+    const matcher = getFaceMatcher(userSettings.data);
 
     for (let index = 0; index < imgElements.length; index++) {
+      // 画像1枚毎に、顔検出結果からマッチングを行い、枠を描画する。
       const img = imgElements[index],
-          imgNew = await this.loadImgFromHTTP(urls[index]),
-          ctx = createCanvasContext(imgNew);
-      const faceImage = allFaces[urls[index]];
+          faceImage = allFaces[urls[index]],
+          ctx = createCanvasContext(img),
+          drawCandidate = {} as { [name: string]: { distance: number, box: any } };
 
       for (let j = 0; j < faceImage.length; j++) {
-        for (const matcher of matchers) {
-          const match = matcher.matcher.findBestMatch(faceImage[j].descriptor);
-          if (match.label === 'unknown') {
-            continue
-          }
+        const match = matcher.findBestMatch(faceImage[j].descriptor);
+        if (match.label === 'unknown') {
+          continue
+        }
 
-          faceDrawBox(ctx.canvas, faceImage[j].detection.box, matcher.color, match.label);
+        // 画像1枚に一致する顔は一つとして、最も似ている(distanceが小さい)ものを選択する。
+        if(drawCandidate[match.label]) {
+          if (drawCandidate[match.label].distance > match.distance) {
+            drawCandidate[match.label] = {distance: match.distance, box: faceImage[j].detection.box}
+          }
+        } else {
+          drawCandidate[match.label] = {distance: match.distance, box: faceImage[j].detection.box}
         }
       }
 
+      for (let name in drawCandidate) {
+        faceDrawBox(ctx.canvas, drawCandidate[name].box, userSettings.data.find((v) => v.name === name)?.color, name);
+      }
       if (types[index] === 'element-image') {
         img.src = ctx.canvas.toDataURL();
       } else if (types[index] === 'background-image') {
         img.style.setProperty("background-image", "url(" + ctx.canvas.toDataURL() + ")");
       }
     }
+
   }
 
-  async traversal(_parent: any) {
-    let child = _parent.firstChild;
-
-    while (child !== _parent.lastChild) {
-      if (child.nodeType === 1) {
-        const exRes = await this.extractBgUrl(child);
-
-        if (exRes && exRes.url) {
-          this.pushResult(child, exRes.url, "background-image", {
-            width: exRes.img.naturalWidth,
-            height: exRes.img.naturalHeight
-          });
-        }
-        await this.traversal(child);
-      }
-
-      child = child.nextSibling;
-    }
-  }
-
-  async extractBgUrl(_element: Element) {
-    const bgStr = window.getComputedStyle(_element).getPropertyValue("background-image");
-    if (bgStr !== "none") {
-      const res = bgStr.split("(")[1].split(")")[0].replace(/["']/ig, '');
-      if (res !== 'url' && !res.match('undefined')) {
-
-        const img: HTMLImageElement = await this.loadImgFromHTTP(res),
-            w = img.naturalWidth,
-            h = img.naturalHeight;
-        if (this.isImgMatch(w, h, res)) {
-          return {url: res, img: img};
-        }
-      }
-    }
-  }
-
-  getImgElement() {
+  setImageElement() {
     const imgElements = document.images;
 
     for (let i = 0; i < imgElements.length; i++) {
@@ -140,39 +111,65 @@ class ImageAll {
           h = img.naturalHeight,
           url = img.src;
 
-      if (this.isImgMatch(w, h, url)) {
-
-        this.pushResult(img, url, "element-image", {
-          width: w,
-          height: h
-        });
-
+      if (w > 100 && h > 100) {
+        this.pushResult(img, url, "element-image");
       }
     }
   }
 
-  isImgMatch(_w: number, _h: number, _url: string) {
-    return (_w !== 0 && _h !== 0 && _w > 10 && !_url.match('.svg'));
+  async setBackgroundImageElement(parent: any) {
+    let child = parent.firstChild;
+
+    while (child !== parent.lastChild) {
+      if (child.nodeType === 1) {
+        const exRes = await this.extractBackgroundImage(child);
+
+        if (exRes && exRes.url) {
+          this.pushResult(exRes.img, exRes.url, "background-image");
+        }
+        await this.setBackgroundImageElement(child);
+      }
+
+      child = child.nextSibling;
+    }
   }
 
-  pushResult(_e: HTMLImageElement, _u: string, _t: string, _s: { width: number, height: number }) {
-    this.result.urls.push(_u);
-    this.result.elements.push(_e);
-    this.result.types.push(_t);
-    this.result.sizes.push(_s);
+  async extractBackgroundImage(element: Element) {
+    const bgStr = window.getComputedStyle(element).getPropertyValue("background-image");
+    if (bgStr !== "none") {
+      const backgroundUrl = bgStr.replace(/^url\("|"\)/g, '')
+      if (backgroundUrl !== "") {
+
+        const img: HTMLImageElement = await this.createImageElementViaHTTP(backgroundUrl),
+            w = img.naturalWidth,
+            h = img.naturalHeight;
+        if (w > 100 && h > 100) {
+          return {url: backgroundUrl, img: img};
+        }
+      }
+    }
   }
 
-  async loadImgFromHTTP(_url: string) {
+  pushResult(imageElement: HTMLImageElement, url: string, types: ("element-image" | "background-image")) {
+    this.result.elements.push(imageElement);
+    this.result.urls.push(url);
+    this.result.types.push(types);
+  }
+
+  async createImageElementViaHTTP(url: string) {
     return new Promise<HTMLImageElement>((resolve) => {
 
-      fetch(_url, {method: "GET"}).then(response => {
+      fetch(url, {method: "GET"}).then(response => {
         response.arrayBuffer().then(blob => {
           const base64 = btoa(
               new Uint8Array(blob)
               .reduce((data, byte) => data + String.fromCharCode(byte), '')
           );
-          const str = 'data:image/png;base64,' + base64;
-          resolve(this.loadImg(str));
+          const img: HTMLImageElement = new Image();
+          img.src = 'data:image/png;base64,' + base64;
+          img.onload = function () {
+            resolve(img);
+          };
         })
       }).catch((e) => {
         console.error('Error:', e);
@@ -180,15 +177,6 @@ class ImageAll {
     });
   }
 
-  async loadImg(_url: string) {
-    return new Promise<HTMLImageElement>((resolve) => {
-      const img: HTMLImageElement = new Image();
-      img.src = _url;
-      img.onload = function () {
-        resolve(img);
-      };
-    });
-  }
 }
 
 

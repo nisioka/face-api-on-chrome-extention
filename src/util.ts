@@ -19,11 +19,9 @@ export type colors = "red" | "blue" | "green" | "purple" | "orange" | "black"
 export const selectableColors = ["red", "blue", "green", "purple", "orange", "black"];
 
 export function getUserSettingBucket() {
-  getBucket<UserSettings>("us1", "sync").clear();
-  return getBucket<UserSettings>("us2", "sync");
+  return getBucket<UserSettings>("us1", "sync");
 }
 
 export function getFaceImageBucket() {
-  getBucket<UserSettings>("im1", "local").clear();
-  return getBucket<FaceImageSource>("im2", "local");
+  return getBucket<FaceImageSource>("im1", "local");
 }

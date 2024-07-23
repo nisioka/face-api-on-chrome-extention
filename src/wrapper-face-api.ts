@@ -32,21 +32,22 @@ export function encodeFloat32ArrayToString(faceDescriptor: Float32Array) {
 function decodeStringToFloat32Array(f32base64Array: string[]) {
   const array = [] as Float32Array[]
   for (const f32base64 of f32base64Array) {
+    if(f32base64 === "") continue;
     array.push(new Float32Array(new Uint8Array([...atob(f32base64)].map(c => c.charCodeAt(0))).buffer));
   }
   return array
 }
 
-export function getFaceMatchers(data: PersonData[]){
-  const faceMatchers= [] as {matcher: faceapi.FaceMatcher, color: colors}[];
+export function getFaceMatcher(data: PersonData[]){
+  const labeledDescriptors= [] as faceapi.LabeledFaceDescriptors[];
 
   data.forEach(value => {
     const descriptors = decodeStringToFloat32Array(Object.values(value.faceDescriptor));
-    const labeledDescriptor = new faceapi.LabeledFaceDescriptors(value.name, descriptors);
-    faceMatchers.push({matcher: new faceapi.FaceMatcher(labeledDescriptor, 0.55), color: value.color});
+    if (descriptors.length === 0) return;
+    labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(value.name, descriptors));
   })
 
-  return faceMatchers
+  return new faceapi.FaceMatcher(labeledDescriptors, 0.55)
 }
 
 export function createCanvasContext(htmlImageElement: HTMLImageElement) {
