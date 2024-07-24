@@ -23,10 +23,10 @@ export default defineConfig((opt) => {
 
 const manifest = defineManifest({
   manifest_version: 3,
-  name: "Chrome Extension Sample",
-  description: "Chrome Extension Sample",
-  version: "0.1.1",
-  minimum_chrome_version: "23",
+  name: "Family Photo Finder",
+  description: "Webページの写真の中から顔を自動検出して強調表示するChrome拡張機能です。",
+  version: "1.0.0",
+  minimum_chrome_version: "88",
   icons: {
     16: "icons/logo.png",
     24: "icons/logo.png",
@@ -34,15 +34,10 @@ const manifest = defineManifest({
     128: "icons/logo.png"
   },
   permissions: [
-    "webRequest",
-    "activeTab",
     "storage"
   ],
   content_scripts: [
     {
-      css: [
-        "css/content_css.css"
-      ],
       js: [
         "content_script.ts"
       ],
@@ -55,7 +50,6 @@ const manifest = defineManifest({
     {
       matches: ["<all_urls>"],
       resources: [
-        "css/content_css.css",
         "weights/ssd_mobilenetv1.weights",
         "weights/face_landmark_68_model.weights",
         "weights/face_recognition_model.weights"

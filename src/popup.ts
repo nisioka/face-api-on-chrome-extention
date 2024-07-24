@@ -69,7 +69,7 @@ function createDomRecord(container: HTMLElement, setting: UserSettings, faceImag
   const imageChoice = record.appendChild(document.createElement("div"));
   imageChoice.style.columnCount = "3";
 
-  const fileNames = Object.keys(setting.data[index].faceDescriptor = setting.data[index].faceDescriptor || {});
+  const fileNames = Object.keys(setting.data[index].faceDescriptor);
   for(let i = 0; i < 3; i++) {
     const imageView = imageChoice.appendChild(document.createElement("div"));
     const inputFile = imageView.appendChild(document.createElement("input"));
@@ -140,11 +140,11 @@ function clearRecord(node: HTMLElement, index: number) {
       Object.keys(u.data[index].faceDescriptor).forEach((fileName) => {
         delete f[fileName]
       })
-      faceImage.set(f).then((s) => {console.log(s)})
+      faceImage.set(f)
     })
 
     u.data[index] = {name: "", color: u.data[index].color, faceDescriptor: {}}
-    userSettings.set(u).then((s) => {console.log(s)})
+    userSettings.set(u)
   })
 }
 
