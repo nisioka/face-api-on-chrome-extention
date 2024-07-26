@@ -25,7 +25,7 @@ const manifest = defineManifest({
   manifest_version: 3,
   name: "Family Photo Finder",
   description: "Webページの写真の中から顔を自動検出して強調表示するChrome拡張機能です。",
-  version: "1.0.0",
+  version: "1.0.1",
   minimum_chrome_version: "88",
   icons: {
     16: "icons/logo.png",
