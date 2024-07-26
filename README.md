@@ -1,5 +1,8 @@
 # Webページ内で特定の顔を識別するChrome拡張
-face-api.js を使って、Webページ内の画像に自動でマーカ枠で囲う。
+face-api.js を使って、Webページ内の画像に自動でマーカ枠で囲う。  
+
+chrome ウェブストアで公開しています。  
+https://chromewebstore.google.com/detail/family-photo-finder/fikdbpibhbgbedmnmlcfckckpohadebi?authuser=0&hl=ja
 
 ## development
 
